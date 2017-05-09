@@ -2,6 +2,7 @@
 /*
 	BackupMySQL.php — 2017-V-7 — Francisco Cascales
  	Backup a MySQL database only with PHP (without mysqldump)
+	https://github.com/fcocascales/phpbackupmysql
 
 	Example 1:
 			// Download a SQL backup file
@@ -57,7 +58,6 @@
 
 	TODO:
 		- Avoid timeout with database too large
-		- Publish in GitHub
 
 	DONE:
 		- Extract the FOREIGN KEY of CREATE TABLE sentence.
@@ -65,6 +65,7 @@
 		- Method to download the SQL or ZIP file (using header)
 		- Detect a temporary writable folder to store SQL & ZIP files
 		- Delete file after download
+		- Publish in GitHub
 */
 
 class BackupMySQL {
