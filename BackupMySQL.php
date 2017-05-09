@@ -7,13 +7,12 @@
 	Example 1:
 			// Download a SQL backup file
 			require_once "BackupMySQL.php";
-			$connection = array(
+			$backup = new BackupMySQL([
 				'host'=> "localhost",
 				'database'=> "acme",
 				'user'=> "root",
 				'password'=> "",
-			);
-			$backup = new BackupMySQL($connection);
+			]);
 			$backup->download();
 
 	Example 2:
@@ -29,11 +28,11 @@
 				"wp_*",
 				"mytable1",
 			];
-			$config = [
-				'folder'=> "../backups",
-				'show'=> ['TABLES', 'DATA'],
+			$show = [
+				'TABLES',
+				'DATA'
 			];
-			$backup = new BackupMySQL($connection, $tables, $config);
+			$backup = new BackupMySQL($connection, $tables, $show);
 			$backup->zip();
 			$backup->download();
 
@@ -48,12 +47,14 @@
 					'password'=> "",
 				],
 				'tables'=> "wp_*,mytable1",
-				'config'=> [
-					'folder'=> "../backups"
-					'show'=> "TABLES,DATA"
-				],
+				'show'=> "TABLES,DATA",
+				'folder'=> "../backups",
 			];
-			$backup = new BackupMySQL($setup['connection'], $setup['tables'], $setup['config']);
+			$backup = new BackupMySQL();
+			$backup->setConnection ($setup['connection']);
+			$backup->setTables ($setup['tables']);
+			$backup->setShow ($setup['show'])
+			$backup->setFolder ($setup['folder']);
 			$backup->run();
 
 	TODO:
@@ -71,7 +72,7 @@
 class BackupMySQL {
 
 	//——————————————————————————————————————————————
-	// CONSTRUCTOR
+	// ATTRIBUTES & CONSTRUCTOR
 
 	private $connection = array( // Database parameters connection
 		'host'=> "localhost",
@@ -81,58 +82,59 @@ class BackupMySQL {
 	);
 
 	private $tables = array( // Backup selection tables
-		'wp_*', 'table1', 'table2',
+		'wp_*',
+		'table1',
+		'table2',
 	);
 
-	private $config = array(
-		'folder'=> "", // Destination folder of backups with write permission
-		'show'=> array(
-			'DB', // Generate SQL to create and use DB
-			'TABLES', // Generate SQL to drop and create TABLEs
-			'VIEWS', // Generate SQL to create or replace VIEWs
-			'PROCEDURES', // Generate SQL to drop and create PROCEDUREs and FUNCTIONs
-			'DATA', // Generate SQL to truncate tables and dump data
-		),
+	private $show = array(
+		'DB', // Generate SQL to create and use DB
+		'TABLES', // Generate SQL to drop and create TABLEs
+		'VIEWS', // Generate SQL to create or replace VIEWs
+		'PROCEDURES', // Generate SQL to drop and create PROCEDUREs and FUNCTIONs
+		'DATA', // Generate SQL to truncate tables and dump data
 	);
 
-	public function __construct($connection, $tables=[], $config=[]) {
-		$this->connection = $connection;
+	private $folder = ""; // Destination folder for the backup files
+
+	public function __construct($connection=[], $tables=[], $show=[]) {
+		$this->setConnection($connection);
 		$this->setTables($tables);
-		$this->setConfig($config);
+		$this->setShow($show);
+		$this->setFolder(self::getTempFolder());
 	}
 
+	//——————————————————————————————————————————————
+	// SETTERS
+
+	public function setConnection($assoc) {
+		$this->connection = $assoc;
+	}
 	public function setTables($array) {
 		if (empty($array)) $this->tables = array();
 		elseif (!is_array($array)) $this->tables = explode(',', $array);
 		else $this->tables = $array;
 	}
-
-	public function setConfig($assoc) {
-		if (!empty($assoc) && is_array($assoc)) {
-			if (!isset($assoc['folder'])) $assoc['folder'] = self::getTempFolder();
-			if (!isset($assoc['show'])) $assoc['show'] = array();
-			elseif (!is_array($assoc['show'])) $assoc['show'] = explode(',', $assoc['show']);
-			$this->config = $assoc;
-		}
+	public function setShow($array) {
+		if (empty($array)) $this->show = array();
+		elseif (!is_array($array)) $this->show = explode(',', $array);
+		else $this->show = $array;
 	}
 	public function setFolder($folder) {
-		$this->config['folder'] = $folder;
+		$this->folder = $folder;
 	}
 
 	private static function getTempFolder() {
 		return ini_get('upload_tmp_dir')? ini_get('upload_tmp_dir') : sys_get_temp_dir();
 	}
 
-	//——————————————————————————————————————————————
-	// CONFIGURATION
-
-	private function show($ITEM) {
-		if (empty($this->config['show'])) return true;
-		else return in_array($ITEM, $this->config['show']);
+	private function show($item) {
+		if (empty($this->show)) return true;
+		else return in_array($item, $this->show);
 	}
 
 	//——————————————————————————————————————————————
-	// PUBLIC
+	// PUBLIC METHODS
 
 	/*
 		Creates a database backup in a SQL file
@@ -223,6 +225,9 @@ class BackupMySQL {
 		if ($purge) unlink($path);
 	}
 
+	//——————————————————————————————————————————————
+	// GETTERS
+
 	/*
 		Get the path of the SQL or ZIP backup file
 		or empty text
@@ -241,8 +246,8 @@ class BackupMySQL {
 	private function initFile() {
 		$database = $this->connection['database'];
 		$time = date('Y-m-d_H-i-s'); //time();
-		$folder = rtrim($this->config['folder'], '/');
-		$this->path = "$folder/{$database}_{$time}.sql";
+		$folder = empty($this->folder)? "" : rtrim($this->folder, '/').'/';
+		$this->path = "{$folder}{$database}_{$time}.sql";
 	}
 
 	private function openFile() {
@@ -545,70 +550,3 @@ class BackupMySQL {
 	}
 
 } // class
-
-//——————————————————————————————————————————————
-// TEST
-
-/*---
-
-//test1();
-test2();
-//test3();
-
-function test1() {
-	require_once "server/connection.php";
-	$connection = [
-		'host'=> Connection::$host,
-		'database'=> Connection::$database,
-		'user'=> Connection::$user,
-		'password'=> Connection::$password,
-	];
-	$tables = empty($_GET['tables'])? "" : $_GET['tables'];
-	$config = [
-		'folder'=> "../backups",
-	];
-	$backup = new BackupMySQL($connection, $tables, $config);
-	$backup->test();
-	//$backup->run();
-	//$backup->download();
-}
-
-function test2() {
-	$connection = [
-		'host'=> "localhost",
-		'database'=> "vispoke",
-		'user'=> "root",
-		'password'=> "",
-	];
-	$tables = ["ext_*", "vi_*", "wp_users"];
-	$config = [
-		//'folder'=> "../backups",
-	];
-	$backup = new BackupMySQL($connection, $tables, $config);
-	//$backup->test();
-	$backup->run();
-	$backup->zip();
-	$backup->download();
-	//echo $backup->getPath();
-}
-
-function test3() {
-	$connection = [
-		'host'=> "localhost",
-		'database'=> "bd_neptuno",
-		'user'=> "root",
-		'password'=> "",
-	];
-	$tables = "";
-	$config = [
-		//'folder'=> "../backups",
-		'show'=> ['TABLES', 'DATA'],
-	];
-	$backup = new BackupMySQL($connection, $tables, $config);
-	//$backup->test();
-	//$backup->run();
-	$backup->zip();
-	$backup->download();
-}
-
----*/
