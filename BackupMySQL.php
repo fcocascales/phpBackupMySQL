@@ -104,6 +104,15 @@ class BackupMySQL {
 		$this->setFolder(self::getTempFolder());
 	}
 
+	private static function getTempFolder() {
+		return ini_get('upload_tmp_dir')? ini_get('upload_tmp_dir') : sys_get_temp_dir();
+	}
+
+	private function show($item) {
+		if (empty($this->show)) return true;
+		else return in_array($item, $this->show);
+	}
+
 	//——————————————————————————————————————————————
 	// SETTERS
 
@@ -122,15 +131,6 @@ class BackupMySQL {
 	}
 	public function setFolder($folder) {
 		$this->folder = $folder;
-	}
-
-	private static function getTempFolder() {
-		return ini_get('upload_tmp_dir')? ini_get('upload_tmp_dir') : sys_get_temp_dir();
-	}
-
-	private function show($item) {
-		if (empty($this->show)) return true;
-		else return in_array($item, $this->show);
 	}
 
 	//——————————————————————————————————————————————
@@ -187,7 +187,7 @@ class BackupMySQL {
 		$zip = rtrim($path, '.sql').'.zip';
 		$za = new ZipArchive();
 		if ($za->open($zip, ZipArchive::CREATE) !== true)
-    	throw new Exception ("Cannot open $zip");
+			throw new Exception ("Cannot open $zip");
 		$za->addFile($path, basename($path));
 		$za->close();
 		unlink($path);
@@ -397,9 +397,9 @@ class BackupMySQL {
 	}
 	private static function secondsToTime($sec) {
 		$dec = substr(ltrim($sec - floor($sec), '0'), 0, 5);
-    $hor = floor($sec / 3600); $sec -= $hor * 3600;
-    $min = floor($sec / 60);   $sec -= $min * 60;
-    return sprintf('%02d:%02d:%02d%s', $hor, $min, $sec, $dec);
+		$hor = floor($sec / 3600); $sec -= $hor * 3600;
+		$min = floor($sec / 60);   $sec -= $min * 60;
+		return sprintf('%02d:%02d:%02d%s', $hor, $min, $sec, $dec);
 	}
 
 	private function sqlCreateDB() {
