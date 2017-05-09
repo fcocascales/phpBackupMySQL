@@ -9,61 +9,65 @@ Backup a MySQL database only with PHP (without mysqldump)
 Download a SQL backup file
 
 ```php
-	require_once "BackupMySQL.php";
-	$backup = new BackupMySQL([
-		'host'=> "localhost",
-		'database'=> "acme",
-		'user'=> "root",
-		'password'=> "",
-	]);
-	$backup->download();
-```	
+require_once "BackupMySQL.php";
+$backup = new BackupMySQL([
+	'host'=> "localhost",
+	'database'=> "acme",
+	'user'=> "root",
+	'password'=> "",
+]);
+$backup->download();
+```
       
 ### Example 2
 
 Download a ZIP backup file
 
-	require_once "BackupMySQL.php";
-	$connection = [
-		'host'=> "localhost",
-		'database'=> "acme",
-		'user'=> "root",
-		'password'=> "",
-	];
-	$tables = [
-		"wp_*",
-		"mytable1",
-	];
-	$show = [
-		'TABLES',
-		'DATA'
-	];
-	$backup = new BackupMySQL($connection, $tables, $show);
-	$backup->zip();
-	$backup->download();
+```php
+require_once "BackupMySQL.php";
+$connection = [
+	'host'=> "localhost",
+	'database'=> "acme",
+	'user'=> "root",
+	'password'=> "",
+];
+$tables = [
+	"wp_*",
+	"mytable1",
+];
+$show = [
+	'TABLES',
+	'DATA'
+];
+$backup = new BackupMySQL($connection, $tables, $show);
+$backup->zip();
+$backup->download();
+```
       
 ### Example 3
 
 Stores a SQL backup file to a writable folder
 
-	require_once "BackupMySQL.php";
-	$setup = [
-		'connection'=> [
-			'host'=> "localhost",
-			'database'=> "acme",
-			'user'=> "root",
-			'password'=> "",
-		],
-		'tables'=> "wp_*,mytable1",
-		'show'=> "TABLES,DATA",
-		'folder'=> "../backups",
-	];
-	$backup = new BackupMySQL();
-	$backup->setConnection ($setup['connection']);
-	$backup->setTables ($setup['tables']);
-	$backup->setShow ($setup['show'])
-	$backup->setFolder ($setup['folder']);
-	$backup->run();
+```php
+require_once "BackupMySQL.php";
+$setup = [
+	'connection'=> [
+		'host'=> "localhost",
+		'database'=> "acme",
+		'user'=> "root",
+		'password'=> "",
+	],
+	'tables'=> "wp_*,mytable1",
+	'show'=> "TABLES,DATA",
+	'folder'=> "../backups",
+];
+$backup = new BackupMySQL();
+$backup->setConnection ($setup['connection']);
+$backup->setTables ($setup['tables']);
+$backup->setShow ($setup['show'])
+$backup->setFolder ($setup['folder']);
+$backup->run();
+```
       
 ## Changes
 
