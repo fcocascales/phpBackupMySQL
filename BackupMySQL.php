@@ -1,8 +1,9 @@
 <?php
 /*
 	BackupMySQL.php — 2017-V-7 — Francisco Cascales
- 	Backup a MySQL database only with PHP (without mysqldump)
-	https://github.com/fcocascales/phpbackupmysql
+ 	— Backup a MySQL database only with PHP (without mysqldump)
+	— https://github.com/fcocascales/phpbackupmysql
+	— Version 0.8
 
 	Example 1:
 			// Download a SQL backup file
@@ -67,12 +68,21 @@
 		- Detect a temporary writable folder to store SQL & ZIP files
 		- Delete file after download
 		- Publish in GitHub
+		- Can be set the name of the backup
+		- $tables ["*", "table1",...] means all tables except table1, etc
+		- Use LIMIT with big tables (avoid out of memory)
 */
 
 class BackupMySQL {
 
 	//——————————————————————————————————————————————
-	// ATTRIBUTES & CONSTRUCTOR
+	// CONSTANTS
+
+	const ROWS_PER_LIMIT = 10000; // 10000
+	const ROWS_PER_INSERT = 1000; // 1000
+
+	//——————————————————————————————————————————————
+	// ATTRIBUTES
 
 	private $connection = array( // Database parameters connection
 		'host'=> "localhost",
@@ -81,13 +91,13 @@ class BackupMySQL {
 		'password'=> ""
 	);
 
-	private $tables = array( // Backup selection tables
+	private $tables = array( // Backup selection tables (by default all)
 		'wp_*',
 		'table1',
 		'table2',
 	);
 
-	private $show = array(
+	private $show = array( // (By default all)
 		'DB', // Generate SQL to create and use DB
 		'TABLES', // Generate SQL to drop and create TABLEs
 		'VIEWS', // Generate SQL to create or replace VIEWs
@@ -95,22 +105,22 @@ class BackupMySQL {
 		'DATA', // Generate SQL to truncate tables and dump data
 	);
 
-	private $folder = ""; // Destination folder for the backup files
+	private $name = ""; // Backup file name (by default database name)
+	private $folder = ""; // Backup target folder (by default temporary folder)
+
+	//——————————————————————————————————————————————
+	// CONSTRUCTOR
 
 	public function __construct($connection=[], $tables=[], $show=[]) {
 		$this->setConnection($connection);
 		$this->setTables($tables);
 		$this->setShow($show);
+		$this->setName("");
 		$this->setFolder(self::getTempFolder());
 	}
 
 	private static function getTempFolder() {
 		return ini_get('upload_tmp_dir')? ini_get('upload_tmp_dir') : sys_get_temp_dir();
-	}
-
-	private function show($item) {
-		if (empty($this->show)) return true;
-		else return in_array($item, $this->show);
 	}
 
 	//——————————————————————————————————————————————
@@ -129,8 +139,11 @@ class BackupMySQL {
 		elseif (!is_array($array)) $this->show = explode(',', $array);
 		else $this->show = $array;
 	}
-	public function setFolder($folder) {
-		$this->folder = $folder;
+	public function setName($string) {
+		$this->name = $string;
+	}
+	public function setFolder($string) {
+		$this->folder = $string;
 	}
 
 	//——————————————————————————————————————————————
@@ -244,10 +257,10 @@ class BackupMySQL {
 	private $buffer = "";
 
 	private function initFile() {
-		$database = $this->connection['database'];
+		$name = empty($this->name)? $this->connection['database'] : $this->name;
 		$time = date('Y-m-d_H-i-s'); //time();
 		$folder = empty($this->folder)? "" : rtrim($this->folder, '/').'/';
-		$this->path = "{$folder}{$database}_{$time}.sql";
+		$this->path = "{$folder}{$name}_{$time}.sql";
 	}
 
 	private function openFile() {
@@ -300,13 +313,23 @@ class BackupMySQL {
 		$result = $this->pdo->query($sql);
 		$all = $result->fetchAll(PDO::FETCH_COLUMN);
 		if (empty($tables)) return $all;
-		else {
-			$result = array();
-			foreach ($all as $table) {
-				if ($this->matchTable($table, $tables)) $result[]= $table;
-			}
-			return $result;
+		else if ($tables[0] == '*') return $this->findTablesToSubstract($all, $tables);
+		else return $this->findTablesToAdd($all, $tables);
+	}
+	public function findTablesToAdd($all, $tables) {
+		$result = array();
+		foreach ($all as $table) {
+			if ($this->matchTable($table, $tables)) $result[]= $table;
 		}
+		return $result;
+	}
+	public function findTablesToSubstract($all, $tables) {
+		$result = array();
+		array_shift($tables); // Removes the '*' first item
+		foreach ($all as $table) {
+			if (!$this->matchTable($table, $tables)) $result[]= $table;
+		}
+		return $result;
 	}
 	private function matchTable($table, $list) {
 		foreach($list as $item) {
@@ -369,6 +392,11 @@ class BackupMySQL {
 		}
 
 		$this->sqlFooter();
+	}
+
+	private function show($item) {
+		if (empty($this->show)) return true;
+		else return in_array($item, $this->show);
 	}
 
 	//——————————————————————————————————————————————
@@ -472,23 +500,30 @@ class BackupMySQL {
 	// DUMP DATA
 
 	private function sqlDumpTable($table) {
-		$MAXIM = 1000;
-		$index = 0;
-		$result = $this->pdo->query("SELECT * FROM `$table`", PDO::FETCH_ASSOC);
-		$count = 0;
+		$limit = self::ROWS_PER_LIMIT;
+		for($offset = 0;; $offset += $limit) {
+			$sql = "SELECT * FROM `$table` LIMIT $offset, $limit ";
+			$result = $this->pdo->query($sql, PDO::FETCH_ASSOC);
+			if ($result->rowCount() == 0) return;
+			$this->sqlDumpResult($table, $result);
+		}
+	}
+	private function sqlDumpResult($table, $result) {
+		$index = $count = 0;
 		$COUNT = $result->rowCount();
 		$this->writeFile();
 		foreach ($result as $row) {
 			$count++;
 			if ($index++ == 0) $this->sqlInsertTable($table, $row);
 			$this->sqlInsertValues($row);
-			if ($index >= $MAXIM || $count >= $COUNT) {
+			if ($index >= self::ROWS_PER_INSERT || $count >= $COUNT) {
 				$this->append(";\n\n");
 				$this->writeFile();
 				$index = 0;
 			}
 			else $this->append(",\n");
 		}
+		return $count;
 	}
 	private function sqlInsertTable($table, $row) {
 		$fields = [];
