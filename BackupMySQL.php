@@ -111,7 +111,7 @@ class BackupMySQL {
 	//——————————————————————————————————————————————
 	// CONSTRUCTOR
 
-	public function __construct($connection=[], $tables=[], $show=[]) {
+	public function __construct($connection=array(), $tables=array(), $show=array()) {
 		$this->setConnection($connection);
 		$this->setTables($tables);
 		$this->setShow($show);
@@ -202,7 +202,7 @@ class BackupMySQL {
 		if ($za->open($zip, ZipArchive::CREATE) !== true)
 			throw new Exception ("Cannot open $zip");
 		$za->addFile($path, basename($path));
-		$za->close();
+		$za->close(); // Fatal error: Maximum execution time of 30 seconds exceeded (87 MB)
 		unlink($path);
 		$this->path = $zip;
 	}
@@ -526,13 +526,13 @@ class BackupMySQL {
 		return $count;
 	}
 	private function sqlInsertTable($table, $row) {
-		$fields = [];
+		$fields = array();
 		foreach($row as $key=>$value) $fields[] = "`$key`";
 		$fields = implode(',', $fields);
 		$this->append("INSERT INTO `$table`($fields) VALUES\n");
 	}
 	private function sqlInsertValues($row) {
-		$values = [];
+		$values = array();
 		foreach ($row as $key=>$value) {
 			if (isset($value)) {
 				$value = addslashes($value);
@@ -574,7 +574,8 @@ class BackupMySQL {
 		$sql = "SHOW CREATE $TYPE `$database`.`$name`";
 		$result = $this->pdo->query($sql);
 		$fieldname = ucwords(strtolower("create $TYPE"));
-		$sql = $result->fetch()[$fieldname];
+    $row = $result->fetch();
+		$sql = $row[$fieldname];
 		$lines = array(
 			'DELIMITER $$',
 			"DROP $TYPE IF EXISTS `$name`".'$$',
