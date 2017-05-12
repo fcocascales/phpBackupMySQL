@@ -103,7 +103,7 @@ class BackupMySQL {
 		'TABLES', // Generate SQL to drop and create TABLEs
 		'VIEWS', // Generate SQL to create or replace VIEWs
 		'PROGRAMS', // Generate SQL to drop and create PROCEDUREs and FUNCTIONs
-    'TRIGGERS', // Generate SQL to drop and create TRIGGERs
+		'TRIGGERS', // Generate SQL to drop and create TRIGGERs
 		'DATA', // Generate SQL to truncate tables and dump data
 	);
 
@@ -383,7 +383,7 @@ class BackupMySQL {
 
 		if ($this->show('TRIGGERS')) {
 			$this->sqlComment('TRIGGERS');
-      $this->sqlTriggers();
+			$this->sqlTriggers();
 		}
 
 		if ($this->show('DATA')) {
@@ -581,7 +581,7 @@ class BackupMySQL {
 		$sql = "SHOW CREATE $TYPE `$database`.`$name`";
 		$result = $this->pdo->query($sql);
 		$fieldname = ucwords(strtolower("create $TYPE"));
-    $row = $result->fetch();
+		$row = $result->fetch();
 		$sql = $row[$fieldname];
 		$lines = array(
 			'DELIMITER $$',
@@ -592,18 +592,18 @@ class BackupMySQL {
 		$this->append(implode("\n", $lines)."\n\n");
 	}
 
-  //——————————————————————————————————————————————
+	//——————————————————————————————————————————————
 	// TRIGGERS
 
-  /*
-    DELIMITER $$
-    DROP TRIGGER IF EXISTS afterInsertGps$$
-    CREATE TRIGGER afterInsertGps AFTER INSERT ON map_gps FOR EACH ROW
-    BEGIN
-      UPDATE map_locators SET gps_id = NEW.id WHERE id = NEW.locator_id;
-    END$$
-    DELIMITER ;
-  */
+	/*
+		DELIMITER $$
+		DROP TRIGGER IF EXISTS afterInsertGps$$
+		CREATE TRIGGER afterInsertGps AFTER INSERT ON map_gps FOR EACH ROW
+		BEGIN
+		  UPDATE map_locators SET gps_id = NEW.id WHERE id = NEW.locator_id;
+		END$$
+		DELIMITER ;
+	*/
 	private function sqlTriggers() {
 		$database = $this->connection['database'];
 		$sql = "SHOW TRIGGERS FROM $database";
