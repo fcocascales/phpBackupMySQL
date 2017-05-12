@@ -6,7 +6,7 @@
 		'host'=> "localhost",
 		'database'=> "bd_neptuno",
 		'user'=> "root",
-		'password'=> "",
+		'password'=> "cascales",
 	];
 	//$tables = ['*', 'albaranes', 'pedidos'];
 	$tables = ['pedidos'];

@@ -3,7 +3,7 @@
 	BackupMySQL.php — 2017-V-7 — Francisco Cascales
  	— Backup a MySQL database only with PHP (without mysqldump)
 	— https://github.com/fcocascales/phpbackupmysql
-	— Version 0.8
+	— Version 1.10
 
 	Example 1:
 			// Download a SQL backup file
@@ -30,7 +30,7 @@
 				"mytable1",
 			];
 			$show = [
-				'TABLES',
+				'TABLE',
 				'DATA'
 			];
 			$backup = new BackupMySQL($connection, $tables, $show);
@@ -48,7 +48,7 @@
 					'password'=> "",
 				],
 				'tables'=> "wp_*,mytable1",
-				'show'=> "TABLES,DATA",
+				'show'=> "TABLE,DATA",
 				'folder'=> "../backups",
 			];
 			$backup = new BackupMySQL();
@@ -69,8 +69,9 @@
 		- Delete file after download
 		- Publish in GitHub
 		- Can be set the name of the backup
-		- $tables ["*", "table1",...] means all tables except table1, etc
+		- setTables(["*", "table1",...]) means all tables except table1, etc
 		- Use LIMIT with big tables (avoid out of memory)
+    - Code of triggers
 */
 
 class BackupMySQL {
@@ -98,10 +99,11 @@ class BackupMySQL {
 	);
 
 	private $show = array( // (By default all)
-		'DB', // Generate SQL to create and use DB
+		'DATABASE', // Generate SQL to create and use DB
 		'TABLES', // Generate SQL to drop and create TABLEs
 		'VIEWS', // Generate SQL to create or replace VIEWs
-		'PROCEDURES', // Generate SQL to drop and create PROCEDUREs and FUNCTIONs
+		'PROGRAMS', // Generate SQL to drop and create PROCEDUREs and FUNCTIONs
+    'TRIGGERS', // Generate SQL to drop and create TRIGGERs
 		'DATA', // Generate SQL to truncate tables and dump data
 	);
 
@@ -349,8 +351,8 @@ class BackupMySQL {
 	private function backupDB() {
 		$this->sqlHeader();
 
-		if ($this->show('DB')) {
-			$this->sqlComment('CREATE DB');
+		if ($this->show('DATABASE')) {
+			$this->sqlComment('DATABASE');
 			$this->sqlCreateDB();
 		}
 
@@ -367,16 +369,21 @@ class BackupMySQL {
 		}
 
 		if ($this->show('VIEWS')) {
-			$this->sqlComment('CREATE VIEWS');
+			$this->sqlComment('VIEWS');
 			foreach ($this->dbviews as $view) $this->sqlCreateView($view);
 		}
 
-		if ($this->show('PROCEDURES') || $this->show('FUNCTIONS')) {
-			$this->sqlComment('CREATE PROCEDURES');
+		if ($this->show('PROGRAMS')) {
+			$this->sqlComment('PROCEDURES');
 			foreach ($this->listProcedures() as $proc) $this->sqlCreateProc($proc);
 
-			$this->sqlComment('CREATE FUNCTIONS');
+			$this->sqlComment('FUNCTIONS');
 			foreach ($this->listFunctions() as $func) $this->sqlCreateFunc($func);
+		}
+
+		if ($this->show('TRIGGERS')) {
+			$this->sqlComment('TRIGGERS');
+      $this->sqlTriggers();
 		}
 
 		if ($this->show('DATA')) {
@@ -535,7 +542,7 @@ class BackupMySQL {
 		$values = array();
 		foreach ($row as $key=>$value) {
 			if (isset($value)) {
-				$value = addslashes($value);
+				$value = addslashes($value); // See PDO::quote()
 				$value = str_replace(array("\n","\r"), array('\\n','\\r'), $value);
 				$values[] = "'$value'";
 			}
@@ -584,5 +591,42 @@ class BackupMySQL {
 		);
 		$this->append(implode("\n", $lines)."\n\n");
 	}
+
+  //——————————————————————————————————————————————
+	// TRIGGERS
+
+  /*
+    DELIMITER $$
+    DROP TRIGGER IF EXISTS afterInsertGps$$
+    CREATE TRIGGER afterInsertGps AFTER INSERT ON map_gps FOR EACH ROW
+    BEGIN
+      UPDATE map_locators SET gps_id = NEW.id WHERE id = NEW.locator_id;
+    END$$
+    DELIMITER ;
+
+    DELIMITER $$
+    DROP TRIGGER IF EXISTS `afterInsertGps`$$
+    CREATE TRIGGER `afterInsertGps` AFTER INSERT ON `map_gps` FOR EACH ROW
+    BEGIN
+      UPDATE map_locators SET gps_id = NEW.id WHERE id = NEW.locator_id;
+    END$$
+    DELIMITER ;
+  */
+  private function sqlTriggers() {
+    $database = $this->connection['database'];
+    $sql = "SHOW TRIGGERS FROM $database";
+    $result = $this->pdo->query($sql);
+    foreach ($result as $row) {
+      extract($row); // $Trigger, $Event, $Table, $Statement, $Timing, ...
+      $lines = array(
+        "DELIMITER ".'$$',
+        "DROP TRIGGER IF EXISTS `$Trigger`".'$$',
+        "CREATE TRIGGER `$Trigger` $Timing $Event ON `$Table` FOR EACH ROW",
+        "$Statement".'$$',
+        "DELIMITER ;"
+      );
+      $this->append(implode("\n", $lines)."\n\n");
+    }
+  }
 
 } // class
