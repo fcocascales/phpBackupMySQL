@@ -71,7 +71,7 @@
 		- Can be set the name of the backup
 		- setTables(["*", "table1",...]) means all tables except table1, etc
 		- Use LIMIT with big tables (avoid out of memory)
-    - Code of triggers
+		- Code of triggers
 */
 
 class BackupMySQL {
@@ -603,30 +603,22 @@ class BackupMySQL {
       UPDATE map_locators SET gps_id = NEW.id WHERE id = NEW.locator_id;
     END$$
     DELIMITER ;
-
-    DELIMITER $$
-    DROP TRIGGER IF EXISTS `afterInsertGps`$$
-    CREATE TRIGGER `afterInsertGps` AFTER INSERT ON `map_gps` FOR EACH ROW
-    BEGIN
-      UPDATE map_locators SET gps_id = NEW.id WHERE id = NEW.locator_id;
-    END$$
-    DELIMITER ;
   */
-  private function sqlTriggers() {
-    $database = $this->connection['database'];
-    $sql = "SHOW TRIGGERS FROM $database";
-    $result = $this->pdo->query($sql);
-    foreach ($result as $row) {
-      extract($row); // $Trigger, $Event, $Table, $Statement, $Timing, ...
-      $lines = array(
-        "DELIMITER ".'$$',
-        "DROP TRIGGER IF EXISTS `$Trigger`".'$$',
-        "CREATE TRIGGER `$Trigger` $Timing $Event ON `$Table` FOR EACH ROW",
-        "$Statement".'$$',
-        "DELIMITER ;"
-      );
-      $this->append(implode("\n", $lines)."\n\n");
-    }
-  }
+	private function sqlTriggers() {
+		$database = $this->connection['database'];
+		$sql = "SHOW TRIGGERS FROM $database";
+		$result = $this->pdo->query($sql);
+		foreach ($result as $row) {
+			extract($row); // $Trigger, $Event, $Table, $Statement, $Timing, ...
+			$lines = array(
+				"DELIMITER ".'$$',
+				"DROP TRIGGER IF EXISTS `$Trigger`".'$$',
+				"CREATE TRIGGER `$Trigger` $Timing $Event ON `$Table` FOR EACH ROW",
+				"$Statement".'$$',
+				"DELIMITER ;"
+			);
+			$this->append(implode("\n", $lines)."\n\n");
+		}
+	}
 
 } // class
