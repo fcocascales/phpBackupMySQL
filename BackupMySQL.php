@@ -129,6 +129,9 @@ class BackupMySQL {
 	// SETTERS
 
 	public function setConnection($assoc) {
+		if (!isset($assoc['host'])) $assoc['host'] = "localhost";
+		if (!isset($assoc['user'])) $assoc['user'] = "root";
+		if (!isset($assoc['password'])) $assoc['password'] = "";
 		$this->connection = $assoc;
 	}
 	public function setTables($array) {
