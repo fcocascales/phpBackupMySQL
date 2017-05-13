@@ -18,7 +18,7 @@ $backup = new BackupMySQL([
 ]);
 $backup->download();
 ```
-      
+
 ### Example 2
 
 Download a ZIP backup file
@@ -43,7 +43,7 @@ $backup = new BackupMySQL($connection, $tables, $show);
 $backup->zip();
 $backup->download();
 ```
-      
+
 ### Example 3
 
 Stores a SQL backup file to a writable folder
@@ -68,7 +68,29 @@ $backup->setShow ($setup['show'])
 $backup->setFolder ($setup['folder']);
 $backup->run();
 ```
-      
+
+### Example 4
+
+Download zip of all tables except table1 and table2
+
+```php
+require_once "BackupMySQL.php";
+$backup = new BackupMySQL();
+$backup->setConnection(array(
+	'host'=> "localhost",
+	'database'=> "acme",
+	'user'=> "root",
+	'password'=> ""
+));
+$backup->setName("ACME_BACKUP");
+$backup->setFolder("backups");
+$backup->setTables(array("*","table1", "$table2"));
+$backup->setShow(array("VIEWS","PROGRAMS","TRIGGERS,""DATA"));
+$backup->run();
+$backup->zip();
+$backup->download();
+```
+
 ## Changes
 
 TODO:
