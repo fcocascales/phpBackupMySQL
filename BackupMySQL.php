@@ -3,7 +3,7 @@
 	BackupMySQL.php — 2017-V-7 — Francisco Cascales
  	— Backup a MySQL database only with PHP (without mysqldump)
 	— https://github.com/fcocascales/phpbackupmysql
-	— Version 1.10
+	— Version 1.12
 
 	Example 1:
 			// Download a SQL backup file
@@ -296,10 +296,12 @@ class BackupMySQL {
 
 	private function initDatabase() {
 		extract($this->connection); // $host, $database, $user, $password
-		$pdo = new PDO("mysql:host=$host;dbname=$database", $user, $password);
+		$charset = "utf8";
+		$string = "mysql:host=$host;dbname=$database;charset=$charset";
+		$pdo = new PDO($string, $user, $password);
 		$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-		$pdo->exec('SET NAMES utf8');
-		$pdo->exec('SET CHARACTER SET utf8');
+		$pdo->exec("SET NAMES $charset");
+		$pdo->exec("SET CHARACTER SET $charset");
 		$this->pdo = $pdo;
 	}
 
@@ -349,6 +351,7 @@ class BackupMySQL {
 	// BACKUP
 
 	private function backupDB() {
+		$this->lockTables();
 		$this->sqlHeader();
 
 		if ($this->show('DATABASE')) {
@@ -388,22 +391,31 @@ class BackupMySQL {
 
 		if ($this->show('DATA')) {
 			$this->sqlComment('TRUNCATE DATA');
-			$this->append("SET FOREIGN_KEY_CHECKS = FALSE;\n\n");
 			foreach ($this->dbtables as $table) $this->sqlTruncateTable($table);
-			$this->append("\nSET FOREIGN_KEY_CHECKS = TRUE;\n\n");
+			$this->append("\n");
 
 			$this->sqlComment('DUMP DATA');
-			$this->append("SET FOREIGN_KEY_CHECKS = FALSE;\n\n");
 			foreach ($this->dbtables as $table) $this->sqlDumpTable($table);
-			$this->append("SET FOREIGN_KEY_CHECKS = TRUE;\n\n");
 		}
 
 		$this->sqlFooter();
+		$this->unlockTables();
 	}
 
 	private function show($item) {
 		if (empty($this->show)) return true;
 		else return in_array($item, $this->show);
+	}
+
+	//——————————————————————————————————————————————
+	// LOCK TABLES
+
+	private function lockTables() {
+		$all = array_merge($this->dbtables, $this->dbviews);
+		$this->pdo->exec('LOCK TABLES `' . implode('` READ, `', $all) . '` READ');
+	}
+	private function unlockTables() {
+		$this->pdo->exec("UNLOCK TABLES");
 	}
 
 	//——————————————————————————————————————————————
@@ -420,15 +432,20 @@ class BackupMySQL {
 	private function sqlHeader() {
 		$this->starttime = microtime(true);
 		$database = $this->connection['database'];
+		$server = $_SERVER['SERVER_NAME'];
 		$datetime = date('Y-m-d H:i:s');
-		$comment = "/* BACKUP — $database — $datetime */\n\n";
-		$this->append($comment);
+		$this->append(
+			"-- BACKUP — $database@$server — $datetime — \n\n".
+			"SET NAMES utf8;\n".
+			"SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n".
+			"SET FOREIGN_KEY_CHECKS = FALSE;\n\n");
 	}
 
 	private function sqlFooter() {
 		$timediff = microtime(true) - $this->starttime;
 		$timediff = self::secondsToTime($timediff);
 		$this->sqlComment("ELAPSED $timediff");
+		$this->append("SET FOREIGN_KEY_CHECKS = TRUE;\n");
 	}
 	private static function secondsToTime($sec) {
 		$dec = substr(ltrim($sec - floor($sec), '0'), 0, 5);
