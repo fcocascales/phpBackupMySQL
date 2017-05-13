@@ -69,7 +69,7 @@ $backup->setFolder ($setup['folder']);
 $backup->run();
 ```
 
-### Example 4
+### Example 4 
 
 Download zip of all tables except table1 and table2
 
