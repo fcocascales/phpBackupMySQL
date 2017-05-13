@@ -76,16 +76,11 @@ Download zip of all tables except table1 and table2
 ```php
 require_once "BackupMySQL.php";
 $backup = new BackupMySQL();
-$backup->setConnection(array(
-	'host'=> "localhost",
-	'database'=> "acme",
-	'user'=> "root",
-	'password'=> ""
-));
+$backup->setConnection(array('database'=>"acme", 'user'=>"root", 'password'=>""));
 $backup->setName("ACME_BACKUP");
 $backup->setFolder("backups");
-$backup->setTables(array("*","table1", "table2"));
-$backup->setShow(array("VIEWS","PROGRAMS","TRIGGERS,""DATA"));
+$backup->setTables(array("*", "table1", "table2"));
+$backup->setShow(array("VIEWS", "PROGRAMS", "TRIGGERS", "DATA"));
 $backup->run();
 $backup->zip();
 $backup->download();
