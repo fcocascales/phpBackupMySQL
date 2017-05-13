@@ -3,7 +3,7 @@
 	BackupMySQL.php — 2017-V-7 — Francisco Cascales
  	— Backup a MySQL database only with PHP (without mysqldump)
 	— https://github.com/fcocascales/phpbackupmysql
-	— Version 1.13
+	— Version 1.13b
 
 	Example 1:
 			// Download a SQL backup file
