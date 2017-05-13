@@ -69,7 +69,7 @@ $backup->setFolder ($setup['folder']);
 $backup->run();
 ```
 
-### Example 4 
+### Example 4
 
 Download zip of all tables except table1 and table2
 
@@ -84,7 +84,7 @@ $backup->setConnection(array(
 ));
 $backup->setName("ACME_BACKUP");
 $backup->setFolder("backups");
-$backup->setTables(array("*","table1", "$table2"));
+$backup->setTables(array("*","table1", "table2"));
 $backup->setShow(array("VIEWS","PROGRAMS","TRIGGERS,""DATA"));
 $backup->run();
 $backup->zip();
