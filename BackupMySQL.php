@@ -239,7 +239,7 @@ class BackupMySQL {
 		header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
 		header('Pragma: public');
 		header('Content-Length: '.filesize($path));
-		echo file_get_contents($path);
+		readfile($path); //echo file_get_contents($path);
 		if ($purge) unlink($path);
 	}
 
