@@ -1,9 +1,12 @@
 <?php
 /*
-	BackupMySQL.php — 2017-V-7 — Francisco Cascales
+	BackupMySQL.php — Francisco Cascales — 2017-V-7
  	— Backup a MySQL database only with PHP (without mysqldump)
 	— https://github.com/fcocascales/phpbackupmysql
-	— Version 1.13b
+	— Version 1.19
+	— 2019-III-3 
+		- Commented code to create database user
+		- Database character set & collation detection		
 
 	Example 1:
 			// Download a SQL backup file
@@ -164,6 +167,7 @@ class BackupMySQL {
 	public function run() {
 		try {
 			$this->initDatabase();
+			$this->initMeta();
 			$this->initFile();
 			$this->initTables();
 			$this->initViews();
@@ -179,13 +183,14 @@ class BackupMySQL {
 	/*
 		Creates a database backup and show it in the web browser
 	*/
-	public function test() {
+	public function view() {
 		try {
 			header("Content-Type: text/plain");
 			$this->initDatabase();
+			$this->initMeta();
 			$this->initTables();
 			$this->initViews();
-			$this->backupDB();
+			$this->backupDB();			
 		}
 		catch (Exception $ex) {
 			die($ex->getMessage());
@@ -294,6 +299,7 @@ class BackupMySQL {
 	// INIT DATABASE
 
 	private $pdo = null;
+	private $dbMeta = array();
 	private $dbtables = array();
 	private $dbviews = array();
 
@@ -306,6 +312,16 @@ class BackupMySQL {
 		$pdo->exec("SET NAMES $charset");
 		$pdo->exec("SET CHARACTER SET $charset");
 		$this->pdo = $pdo;
+	}
+
+	private function initMeta() {
+		$database = $this->connection['database'];
+		$sentence = $this->pdo->prepare("SELECT 
+			DEFAULT_CHARACTER_SET_NAME AS charset, 
+			DEFAULT_COLLATION_NAME AS collation FROM information_schema.SCHEMATA 
+			WHERE schema_name = ?");
+		if ($sentence->execute([$database])) $this->dbMeta = $sentence->fetch(PDO::FETCH_ASSOC);
+		else $this->dbMeta = ['charset'=>"utf8", 'collation'=>"utf8_general_ci"];		
 	}
 
 	private function initTables() {
@@ -459,10 +475,13 @@ class BackupMySQL {
 
 	private function sqlCreateDB() {
 		$database = $this->connection['database'];
+		extract($this->dbMeta); // $charset, $collation
 		$sql = "CREATE DATABASE IF NOT EXISTS $database\n".
-			"\tCHARACTER SET utf8\n".
-			"\tCOLLATE utf8_general_ci;\n\n".
-			"USE $database;\n\n";
+			"\tCHARACTER SET $charset\n".
+			"\tCOLLATE $collation;\n\n";			
+		$sql .= "-- CREATE USER IF NOT EXISTS 'user'@'%' IDENTIFIED BY 'password';\n";
+		$sql .= "-- GRANT ALL PRIVILEGES ON $database.* TO 'user'@'%' IDENTIFIED BY 'password';\n\n";
+		$sql .= "USE $database;\n\n";
 		$this->append($sql);
 	}
 
@@ -475,6 +494,10 @@ class BackupMySQL {
 		$array = $result->fetch(PDO::FETCH_NUM); // Table, Create Table
 		$sql = $array[1];
 		$sql = substr($sql, 0, 12)." IF NOT EXISTS ".substr($sql, 13);
+		$sql = str_replace(" COLLATE ".$this->dbMeta['collation'], "", $sql);
+		$sql = str_replace(" COLLATE=".$this->dbMeta['collation'], "", $sql);
+		$sql = str_replace(" CHARACTER SET ".$this->dbMeta['charset'], "", $sql);
+		$sql = str_replace(" DEFAULT CHARSET=".$this->dbMeta['charset'], "", $sql);
 		$sql = $this->extractForeignKeys($table, $sql);
 		$this->append("$sql;\n\n");
 	}
